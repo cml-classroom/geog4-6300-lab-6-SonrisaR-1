@@ -9,11 +9,22 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Regression
+## Regression #reference class day 11/14/2024
+#univariate regression
+#multivariate regression
+#
 
 ```{r setup, message=FALSE, warning=FALSE}
 library(sf)
 library(tidyverse)
+library(knitr)
+library(tmap)
+
+library(car)
+library(lmtest)
+library(Hmisc)
+library(sjPlot)
+library(corrplot)
 ```
 
 **Overview:**
@@ -49,69 +60,176 @@ We will start by looking at data for 2020.
 
 ```{r}
 #Code goes here.
+kable(head(lab6_data))
+#hist(lab6_data) #error
+colnames(lab6_data)
+
+lab6_data_numeric <- lab6_data %>%
+  select(ndvi_20_med, maxtemp_20_med, mintemp_20_med, rain_20_sum, pop_20, water_20_pct, elev_med) #make sure numeric #ndvi does not exist as a column.
+
+#lab6_data_numeric <- lab6_data %>%
+  #select(ndvi_20_med, maxtemp_00_20_med, mintemp_00_20_med, rain_00_20_sum, pop_00_20, water_00_20_pct, elev_med) #make sure numeric #ndvi does not exist as a column.
+
+#NDVI 2020
+hist(lab6_data_numeric$ndvi_20_med)  #skewed
+
+#Max Temp 2020
+hist(lab6_data_numeric$maxtemp_20_med) #skewed
+
+#Min Temperature 2020
+hist(lab6_data_numeric$mintemp_20_med) #skewed
+
+#Rain 2020
+hist(lab6_data_numeric$rain_20_sum) #skewed
+
+# Population 2020
+hist(lab6_data_numeric$pop_20) #skewed
+
+# Water Percentage 2020
+hist(lab6_data_numeric$water_20_pct) #skewed
+
+# Elevation
+hist(lab6_data_numeric$elev_med) #skewed
+
 ```
 
-{Your assessment of the variables' normality goes here.}
+{All of these variables look skewed (not normally distributed) based on their histograms.}
 
 **Question 2** _Use tmap to map these same variables using Jenks natural breaks as the classification method. For an extra challenge, use `tmap_arrange` to plot all maps in a single figure._
 
 ```{r}
+map_ndvi <- tm_shape(lab6_data) + # error correction - whole sf object needed to be passed in to tm_shape
+  tm_borders() +  
+  tm_fill("ndvi_20_med" , style = "jenks") #needed to specify the variable for the color, in this case "ndvi_20_med"
 
+map_maxT <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("maxtemp_20_med" , style = "jenks") 
+
+map_minT <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("mintemp_20_med" , style = "jenks")
+
+map_rain <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("rain_20_sum" , style = "jenks")
+
+map_pop <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("pop_20" , style = "jenks")
+
+map_wat <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("water_20_pct" , style = "jenks")
+
+map_elev <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("elev_med" , style = "jenks")
+
+
+tmap_arrange(map_ndvi, map_maxT, map_minT, map_rain, map_pop, map_wat, map_elev )
 ```
 
 
 **Question 3** _Based on the maps from question 3, summarise major patterns you see in the spatial distribution of these data from any of your variables of interest. How do they appear to be associated with the NDVI variable?_
 
-{Your response here.}
+{Rainfall is concentrated along the north and western coasts which matches the pattern of the NDVI.}
 
 **Question 4** _Create univariate models for each of the variables listed in question 1, with NDVI in 2020 as the dependent variable. Print a summary of each model. Write a summary of those results that indicates the direction, magnitude, and significance for each model coefficient._
 
 ```{r}
 
+mod_maxT<-lm(ndvi_20_med~maxtemp_20_med,data=lab6_data)
+mod_minT<-lm(ndvi_20_med~mintemp_20_med,data=lab6_data)
+mod_rain<-lm(ndvi_20_med~rain_20_sum,data=lab6_data)
+
+mod_pop<-lm(ndvi_20_med~pop_20,data=lab6_data)
+mod_wat<-lm(ndvi_20_med~water_20_pct,data=lab6_data)
+mod_elev<-lm(ndvi_20_med~elev_med,data=lab6_data)
+
+
+
+summary(mod_maxT)
+summary(mod_minT)
+summary(mod_rain)
+
+summary(mod_pop)
+summary(mod_wat)
+summary(mod_elev)
+
+
 ```
 
-{Discussion here}
+{As elevation increases by 1 unit, the NDVI increases by 1.787e-04 which is a significant relationship
+As the watercover increases by 1 unit, the NDVI decreases by -0.178263 which is not a significant relationship
+As the population increases by 1 unit, the NDVI increases by 1.500e-06 which is a significant relationship but less significant than the other factors.
+As rain fall increases by 1 unit, the NDVI increases by 9.124e-07 which is a significant relationship
+As mintemp increases by 1 unit, the NDVI decreases by -0.012282 which is a significant relationship
+As maxtemp increases by 1 unit, the NDVI decreases by -0.0130902 which is a significant relationship}
 
 **Question 5** _Create a multivariate regression model with the variables of interest, choosing EITHER max or min temperature (but not both) You may also choose to leave out any variables that were insignificant in Q4. Use the univariate models as your guide. Call the results._
 
 ```{r}
-#Code goes here
+model_all<-lm(ndvi_20_med~maxtemp_20_med + rain_20_sum + pop_20 + elev_med,data=lab6_data)
+summary(model_all)
+
+
 ```
 
 **Question 6** _Summarize the results of the multivariate model. What are the direction, magnitude, and significance of each coefficient? How did it change from the univariate models you created in Q4 (if at all)? What do the R2 and F-statistic values tell you about overall model fit?_
 
-{Response goes here}
+{As elevation increases by 1 unit, the NDVI increases by  1.233e-04 which is lower then the univariate result of 1.787e-04 and both are significant relationships
+As the population increases by 1 unit, the NDVI increases by 2.862e-07 which is higher than the univariate result of 1.500e-06 and both are significant relationships but with two "stars" so less significant that the other factors.
+As rain fall increases by 1 unit, the NDVI increases by 8.469e-07 which is lower than the univariate result of 9.124e-07 and both are significant relationships
+As maxtemp increases by 1 unit, the NDVI decreases by -1.170e-02 which is higher in magnitude than -0.0130902 and both are significant relationships
+
+The F-statistic is an analysis of variance and it indicates whether or not the r2 is significant. The adjusted R2 is 0.6376 (so 63% of the change in NDVI is explained by the variables in question) and the f-statistic is 315.5 which is a high value so it indicates that the r2 is reliable. Based on these results, this model is a good "fit" meaning that the independent variables do a good job of explaining the change in NDVI.  }
 
 **Question 7** _Use a histogram and a map to assess the normality of residuals and any spatial autocorrelation. Summarise any notable patterns that you see._
 
 ```{r}
-#Code goes here
+
+lab6_data$residuals<-residuals(model_all)
+
+hist(lab6_data$residuals)
+
+map_res <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("residuals" , style = "jenks")
+map_res 
+
 ```
 
-{Summary goes here}
+{the most notable residuals (most extreme) seemed scattered allong the coast}
 
 **Question 8** _Assess any issues with multicollinearity or heteroskedastity in this model using the techniques shown in class. Run the appropriate tests and explain what their results show you._
 
+
 ```{r}
-#Code goes here
+
+vif(model_all) #the value should be under 5 for low multicollinearity.
+
+bptest(model_all) #skibbity heteroskedasticity # if the p-value is significant, I would reject the null that the data is NOT.
+
+
 ```
 
-{Interpretation goes here}
+{The vif value was under 5 so I do not suspect high multicollinearity. The P value is significant at p-value < 2.2e-16, so I reject the null hypothesis and conclude that the data is heteroskedastic}
 
 **Question 9** _How would you summarise the results of this model in a sentence or two? In addition, looking at the full model and your diagnostics, do you feel this is a model that provides meaningful results? Explain your answer._
 
 ```{r}
-Discussion here
+#In summary, the results of this model indicate that rainfall, Population and elevation have a positive impact on the increase of NDVI and max temperature has a negative relationship with NDVI. The model that I created which omits mintemp and watercover, is only somewhat changed from the full model, also, low multicolinearity was indicated so I would tend to trust this model to provide meaningful results. 
 ```
 
 
 **Disclosure of assistance:** _Besides class materials, what other sources of assistance did you use while completing this lab? These can include input from classmates, relevant material identified through web searches (e.g., Stack Overflow), or assistance from ChatGPT or other AI tools. How did these sources support your own learning in completing this lab?_
 
-{Response here.}
+{A fellow student helped me debug question 4. Chatgpt helped me debug adding new columns in the challenge question. I couldn't remember where in the class material we talked about R2 is 0.6376 and the f-statistic so I looked that up onlilne and in our textbook}
 
 **Lab reflection:** _How do you feel about the work you did on this lab? Was it easy, moderate, or hard? What were the biggest things you learned by completing it?_
 
-{Discussion here.}
+{I felt good about my work on this lab and gaining more comptency in R. It was a moderately hard lab and it was pretty. I REALLY appreciated using some climate data! The univariate versus multivariate analysis was particularly useful to help interpret, compare and cement an understanidng of these types of regression modeling. }
 
 
 **Challenge question**
@@ -120,16 +238,97 @@ Discussion here
 Create a first difference model. To do that, subtract the values in 2000 from the values in 2020 for each variable for which that is appropriate. Then create a new model similar to the one you created in question 5, but using these new variables showing the *change in values* over time. Call the results of the model, and interpret the results in the same ways you did above. Also chart and map the residuals to assess model error. Finally, write a short section that summarises what, if anything, this model tells you. 
 
 ```{r}
+#model_all_New<-lm(ndvi_20_med-ndvi_00_med~maxtemp_20_med + rain_20_sum,data=lab6_data) do the subtraction seperately and rename!
+#summary(model_all)
+
+dif1_NDVI<-(lab6_data$ndvi_20_med-lab6_data$ndvi_00_med)
+dif1_maxt<-(lab6_data$maxtemp_20_med-lab6_data$maxtemp_00_med)
+dif1_mint<-(lab6_data$mintemp_20_med-lab6_data$mintemp_00_med)
+dif1_rain<-(lab6_data$rain_20_sum-lab6_data$rain_00_sum)
+dif1_pop<-(lab6_data$pop_20-lab6_data$pop_00)
+dif1_wat<-(lab6_data$water_20_pct-lab6_data$water_00_pct)
+
+#dif1_NDVI
+#dif1_maxt
+#dif1_mint
+#dif1_rain
+#dif1_pop
+#dif1_wat
+
+Model_all_dif1<-lm(dif1_NDVI~dif1_maxt + dif1_mint + dif1_rain + dif1_pop + dif1_wat, data=lab6_data)
+summary(Model_all_dif1)
+
+#according to the first difference model, if correctly done, the only significant coefficients were the difference in rain and difference in min temp. I think this means that the other coefficients did not have significant change between 2000 and 2020. According to The min temp in 2000 was 
+
+#NDVI first difference
+hist(dif1_NDVI)  #fairly normal looking
+
+#Max Temp first Dif
+hist(dif1_maxt) #normalish
+
+#Min Temperature first dif
+hist(dif1_mint) #skewed
+
+#Rain first dif
+hist(dif1_rain) #normalish
+
+# Population first dif
+hist(dif1_pop) #skewed
+
+# Water Percentage first dif
+hist(dif1_wat) #normalish
+
+
 
 ```
 
+```{r}
+
+lab6_data$dif1_NDVI <- lab6_data$ndvi_20_med - lab6_data$ndvi_00_med
+lab6_data$dif1_maxt <- lab6_data$maxtemp_20_med - lab6_data$maxtemp_00_med
+lab6_data$dif1_mint <- lab6_data$mintemp_20_med - lab6_data$mintemp_00_med
+lab6_data$dif1_rain <- lab6_data$rain_20_sum - lab6_data$rain_00_sum
+lab6_data$dif1_pop <- lab6_data$pop_20 - lab6_data$pop_00
+lab6_data$dif1_wat <- lab6_data$water_20_pct - lab6_data$water_00_pct
+
+map_ndvi <- tm_shape(lab6_data) + # error correction - whole sf object needed to be passed in to tm_shape
+  tm_borders() +  
+  tm_fill("dif1_NDVI" , style = "jenks") #needed to specify the variable for the color, in this case "ndvi_20_med"
+
+map_maxT <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("dif1_maxt" , style = "jenks") 
+
+map_minT <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("dif1_mint" , style = "jenks")
+
+map_rain <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("dif1_rain" , style = "jenks")
+
+map_pop <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("dif1_pop" , style = "jenks")
+
+map_wat <- tm_shape(lab6_data) + 
+  tm_borders() +  
+  tm_fill("dif1_wat" , style = "jenks")
 
 
+
+tmap_arrange(map_ndvi, map_maxT, map_minT , map_rain, map_pop, map_wat )
+
+```
+
+{summary: The results showed predominantly negative change (indicating decrease over the time period 2000-2020) for NDVI, and rain. There were patterns of primarily increase in Max Temperature, and increase in Min temperature values concentrated accross western Australia. Population showed no decreases over Australia, and there were notable increases in population along the southeast coast. Percent water cover showed increase in some areas and decrease in others but with no distinct pattern.}
 
 #Option 2
 The animal data included in this dataset is an example of count data, and usually we would use a Poisson or similar model for that purpose. Let's try it with regular OLS regression though. Create two regression models to assess how the counts of two different animals (say, koalas and emus) are associated with at least three of the environmental/climatological variables given above. Be sure to use the same independent variables in each model. Interpret the results of each model and then explain the importance of any differences in the model coefficients between them, focusing on direction, magnitude, and significance.
 
 ```{r}
+
+
 
 ```
 
